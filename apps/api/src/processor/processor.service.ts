@@ -161,12 +161,18 @@ export class ProcessorService implements OnModuleInit, OnModuleDestroy {
 
   private call<T>(
     fn: (cb: GrpcCallback<T>) => void,
+    timeoutMs = 7000,
   ): Promise<T> {
     if (!this.client) {
       return Promise.reject(new Error('gRPC client not initialised'));
     }
     return new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error(`gRPC call timed out after ${timeoutMs}ms`)),
+        timeoutMs,
+      );
       fn((err, res) => {
+        clearTimeout(timer);
         if (err) return reject(err);
         resolve(res);
       });

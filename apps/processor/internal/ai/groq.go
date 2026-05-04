@@ -32,7 +32,7 @@ func NewGroqProvider(apiKey, model string) *GroqProvider {
 	return &GroqProvider{
 		apiKey: apiKey,
 		model:  model,
-		client: &http.Client{Timeout: 15 * time.Second},
+		client: &http.Client{Timeout: 5 * time.Second},
 	}
 }
 
