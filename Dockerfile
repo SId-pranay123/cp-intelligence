@@ -23,6 +23,7 @@ RUN npm install
 COPY packages/ /build/packages/
 COPY apps/api/ ./
 
+RUN npx prisma generate
 RUN npm run build
 
 # Production node_modules (no devDeps)

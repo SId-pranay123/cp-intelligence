@@ -11,7 +11,6 @@ build/
 
 # Go
 apps/processor/bin/
-apps/processor/gen/
 
 # OS
 .DS_Store
