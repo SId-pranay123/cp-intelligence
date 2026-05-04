@@ -1,6 +1,9 @@
 #!/bin/sh
 set -e
 
+# Prisma config reads DATABASE_URL; fall back to POSTGRES_URL if not set separately
+export DATABASE_URL="${DATABASE_URL:-$POSTGRES_URL}"
+
 # Run Prisma migrations (creates schema on first deploy, applies changes on subsequent)
 echo "Running database migrations…"
 cd apps/api
