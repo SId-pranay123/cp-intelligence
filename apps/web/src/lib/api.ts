@@ -16,6 +16,7 @@ export async function apiFetch<T>(
       ...(init?.headers as Record<string, string>),
     },
     cache: 'no-store',
+    signal: AbortSignal.timeout(8000),
   });
   if (!res.ok) {
     throw new Error(`API ${path} returned ${res.status}`);
