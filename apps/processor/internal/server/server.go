@@ -88,6 +88,11 @@ func (s *Server) GetRecommendations(
 		return &pb.RecommendationResponse{UserId: req.UserId}, nil
 	}
 
+	log.Printf("GetRecommendations: found %d weak concepts for user=%s", len(weakConcepts), req.UserId)
+	for i, wc := range weakConcepts {
+		log.Printf("GetRecommendations: weak[%d] concept=%s strength=%.1f cfTags=%v", i, wc.ConceptID, wc.Strength, wc.CFTags)
+	}
+
 	var recs []*pb.Recommendation
 
 	for _, concept := range weakConcepts {

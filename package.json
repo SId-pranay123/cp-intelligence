@@ -11,6 +11,7 @@
     "dev:web": "npm -w apps/web run dev",
     "dev:api": "npm -w apps/api run start:dev",
     "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down"
+    "docker:down": "docker-compose down",
+    "dev:processor": "cd apps/processor && go run ./cmd/processor"
   }
 }

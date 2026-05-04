@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"log"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -16,7 +17,8 @@ type ProblemRow struct {
 
 // UnsolvedByConceptIDs returns problems whose concept_ids overlap with the
 // given set that the user has NOT yet solved (no 'OK' submission).
-// Falls back to the static list when the DB is unavailable or returns nothing.
+// Returns nil, nil when the DB has no matching rows — callers should skip
+// the concept rather than falling back to static problems.
 func UnsolvedByConceptIDs(
 	ctx context.Context,
 	pool *pgxpool.Pool,
@@ -25,8 +27,10 @@ func UnsolvedByConceptIDs(
 	limit int,
 ) ([]ProblemRow, error) {
 	if pool == nil || len(conceptIDs) == 0 {
-		return fallback(conceptIDs, limit), nil
+		return nil, nil
 	}
+
+	log.Printf("postgres.UnsolvedByConceptIDs: querying user=%s concepts=%v", userID, conceptIDs)
 
 	rows, err := pool.Query(ctx, `
 		SELECT external_id, title, difficulty, link
@@ -56,21 +60,25 @@ func UnsolvedByConceptIDs(
 		LIMIT $3
 	`, conceptIDs, userID, limit)
 	if err != nil {
-		return fallback(conceptIDs, limit), nil
+		log.Printf("postgres.UnsolvedByConceptIDs: query failed user=%s concepts=%v: %v", userID, conceptIDs, err)
+		return nil, err
 	}
 	defer rows.Close()
 
 	var result []ProblemRow
 	for rows.Next() {
 		var r ProblemRow
-		if err := rows.Scan(&r.ProblemID, &r.ProblemName, &r.Difficulty, &r.Link); err != nil {
+		if scanErr := rows.Scan(&r.ProblemID, &r.ProblemName, &r.Difficulty, &r.Link); scanErr != nil {
+			log.Printf("postgres.UnsolvedByConceptIDs: scan error: %v", scanErr)
 			continue
 		}
 		result = append(result, r)
 	}
-	if rows.Err() != nil || len(result) == 0 {
-		return fallback(conceptIDs, limit), nil
+	if rows.Err() != nil {
+		log.Printf("postgres.UnsolvedByConceptIDs: rows error: %v", rows.Err())
+		return nil, rows.Err()
 	}
+	log.Printf("postgres.UnsolvedByConceptIDs: found %d problems for user=%s concepts=%v", len(result), userID, conceptIDs)
 	return result, nil
 }
 

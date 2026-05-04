@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
 
 	pb "github.com/cp-intelligence/processor/gen/proto"
@@ -21,6 +22,9 @@ import (
 )
 
 func main() {
+	// Load .env if present (silently ignored if missing — prod uses real env vars)
+	_ = godotenv.Load()
+
 	// ── Config from env ──────────────────────────────────────────────────────
 	grpcPort     := envOr("GRPC_PORT", "50051")
 	neo4jURI    := envOr("NEO4J_URI", "bolt://localhost:7687")
@@ -29,6 +33,8 @@ func main() {
 	postgresURL  := envOr("POSTGRES_URL", "")
 	aiProvider   := envOr("AI_PROVIDER", "claude")
 	anthropicKey := envOr("ANTHROPIC_API_KEY", "")
+	geminiKey    := envOr("GEMINI_API_KEY", "")
+	geminiModel  := envOr("GEMINI_MODEL", "gemini-1.5-flash")
 
 	// ── Neo4j ────────────────────────────────────────────────────────────────
 	driver, err := neo4jclient.Connect(neo4jURI, neo4jUser, neo4jPass)
@@ -75,6 +81,15 @@ func main() {
 			log.Printf("ai: using Claude provider")
 		} else {
 			log.Printf("ai: ANTHROPIC_API_KEY not set — using template reasons")
+		}
+	case "gemini":
+		if geminiKey != "" {
+			p := ai.NewGeminiProvider(geminiKey, geminiModel)
+			p.Ping(context.Background())
+			aiSvc = p
+			log.Printf("ai: using Gemini provider")
+		} else {
+			log.Printf("ai: GEMINI_API_KEY not set — using template reasons")
 		}
 	default:
 		log.Printf("ai: unknown provider %q — using template reasons", aiProvider)
