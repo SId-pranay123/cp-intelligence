@@ -17,8 +17,8 @@ FROM node:20-alpine AS node-builder
 WORKDIR /build/api
 
 # Install all deps (including devDeps needed for nest build)
-COPY apps/api/package*.json ./
-RUN npm ci
+COPY apps/api/package.json ./
+RUN npm install
 
 COPY packages/ /build/packages/
 COPY apps/api/ ./
@@ -26,7 +26,7 @@ COPY apps/api/ ./
 RUN npm run build
 
 # Production node_modules (no devDeps)
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 # ── Stage 3: Final image ──────────────────────────────────────────────────────
 FROM node:20-alpine
