@@ -1,10 +1,12 @@
 import {
   Injectable,
   BadRequestException,
+  ConflictException,
   NotFoundException,
   ServiceUnavailableException,
   Logger,
 } from '@nestjs/common';
+import { Prisma } from '../../generated/prisma/client';
 import axios, { AxiosError } from 'axios';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProcessorService } from '../processor/processor.service';
@@ -37,10 +39,19 @@ export class CodeforcesService {
   async setHandle(user: User, handle: string): Promise<{ handle: string }> {
     await this.validateHandleExists(handle);
 
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { codeforcesHandle: handle },
-    });
+    try {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { codeforcesHandle: handle },
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        throw new ConflictException(
+          `Codeforces handle "${handle}" is already linked to another account.`,
+        );
+      }
+      throw err;
+    }
 
     return { handle };
   }

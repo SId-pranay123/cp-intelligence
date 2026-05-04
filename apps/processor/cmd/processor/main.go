@@ -31,10 +31,12 @@ func main() {
 	neo4jUser   := envOr("NEO4J_USERNAME", "neo4j")
 	neo4jPass   := envOr("NEO4J_PASSWORD", "cp_password")
 	postgresURL  := envOr("POSTGRES_URL", "")
-	aiProvider   := envOr("AI_PROVIDER", "claude")
+	aiProvider   := envOr("AI_PROVIDER", "groq")
 	anthropicKey := envOr("ANTHROPIC_API_KEY", "")
 	geminiKey    := envOr("GEMINI_API_KEY", "")
 	geminiModel  := envOr("GEMINI_MODEL", "gemini-1.5-flash")
+	groqKey      := envOr("GROQ_API_KEY", "")
+	groqModel    := envOr("GROQ_MODEL", "")
 
 	// ── Neo4j ────────────────────────────────────────────────────────────────
 	driver, err := neo4jclient.Connect(neo4jURI, neo4jUser, neo4jPass)
@@ -84,12 +86,17 @@ func main() {
 		}
 	case "gemini":
 		if geminiKey != "" {
-			p := ai.NewGeminiProvider(geminiKey, geminiModel)
-			p.Ping(context.Background())
-			aiSvc = p
-			log.Printf("ai: using Gemini provider")
+			aiSvc = ai.NewGeminiProvider(geminiKey, geminiModel)
+			log.Printf("ai: using Gemini provider (model=%s)", geminiModel)
 		} else {
 			log.Printf("ai: GEMINI_API_KEY not set — using template reasons")
+		}
+	case "groq":
+		if groqKey != "" {
+			aiSvc = ai.NewGroqProvider(groqKey, groqModel)
+			log.Printf("ai: using Groq provider (model=%s)", envOr("GROQ_MODEL", "llama3-8b-8192"))
+		} else {
+			log.Printf("ai: GROQ_API_KEY not set — using template reasons")
 		}
 	default:
 		log.Printf("ai: unknown provider %q — using template reasons", aiProvider)

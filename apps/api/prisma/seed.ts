@@ -1,12 +1,11 @@
 /**
- * Prisma seed — populates the `problems` table with curated Codeforces problems
+ * Seed — populates the `problems` table with curated Codeforces problems
  * so that GetRecommendations works for any user, even before they submit.
  * Run with: npx prisma db seed
  */
 
-import { PrismaClient } from '../generated/prisma';
-
-const prisma = new PrismaClient();
+import 'dotenv/config';
+import { Pool } from 'pg';
 
 type Diff = 'easy' | 'medium' | 'hard' | 'expert';
 
@@ -55,9 +54,14 @@ const PROBLEMS: SeedProblem[] = [
   { externalId: "112A",  title: "Petya and Strings",           difficulty: "easy",   contestId: 112,  index: "A", conceptIds: ["strings", "recursion"] },
 
   // ── Complexity / Time-Space Complexity ───────────────────────────────────────
-  // No CF tag maps to "complexity"; seed a few beginner problems so the concept isn't empty
+  // No CF tag maps to "complexity"; seed dedicated problems with distinct IDs
   { externalId: "1A",    title: "Theatre Square",              difficulty: "easy",   contestId: 1,    index: "A", conceptIds: ["math-basics", "arrays", "complexity"] },
   { externalId: "231A",  title: "Team",                        difficulty: "easy",   contestId: 231,  index: "A", conceptIds: ["math-basics", "complexity"] },
+  { externalId: "282A",  title: "Cows and Primitive Roots",    difficulty: "easy",   contestId: 282,  index: "A", conceptIds: ["complexity", "math-basics"] },
+  { externalId: "1A",    title: "Theatre Square",              difficulty: "easy",   contestId: 1,    index: "A", conceptIds: ["math-basics", "arrays"] },
+  { externalId: "550B",  title: "Preparing Olympiad",          difficulty: "easy",   contestId: 550,  index: "B", conceptIds: ["complexity", "arrays", "greedy"] },
+  { externalId: "1030A", title: "In Search of an Easy Problem",difficulty: "easy",   contestId: 1030, index: "A", conceptIds: ["complexity", "arrays"] },
+  { externalId: "318A",  title: "Even Odds",                   difficulty: "easy",   contestId: 318,  index: "A", conceptIds: ["complexity", "math-basics"] },
 
   // ── Sorting ──────────────────────────────────────────────────────────────────
   { externalId: "550A",  title: "Two Substrings",              difficulty: "easy",   contestId: 550,  index: "A", conceptIds: ["strings", "sorting"] },
@@ -390,35 +394,29 @@ function deduplicateProblems(raw: SeedProblem[]): SeedProblem[] {
 }
 
 async function main() {
+  const pool = new Pool({ connectionString: process.env['DATABASE_URL'] });
+
   const problems = deduplicateProblems(PROBLEMS);
   console.log(`Seeding ${problems.length} unique problems…`);
 
   let upserted = 0;
   for (const p of problems) {
     const link = cf(p.contestId, p.index);
-    await prisma.problem.upsert({
-      where: { source_externalId: { source: 'codeforces', externalId: p.externalId } },
-      create: {
-        source: 'codeforces',
-        externalId: p.externalId,
-        title: p.title,
-        difficulty: p.difficulty,
-        link,
-        conceptIds: p.conceptIds,
-      },
-      update: {
-        title: p.title,
-        difficulty: p.difficulty,
-        link,
-        conceptIds: p.conceptIds,
-      },
-    });
+    await pool.query(
+      `INSERT INTO problems (id, source, external_id, title, difficulty, link, concept_ids, created_at)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, now())
+       ON CONFLICT (source, external_id) DO UPDATE
+         SET title       = EXCLUDED.title,
+             difficulty  = EXCLUDED.difficulty,
+             link        = EXCLUDED.link,
+             concept_ids = EXCLUDED.concept_ids`,
+      ['codeforces', p.externalId, p.title, p.difficulty, link, p.conceptIds],
+    );
     upserted++;
   }
 
   console.log(`Done — upserted ${upserted} problems.`);
+  await pool.end();
 }
 
-main()
-  .catch((e) => { console.error(e); process.exit(1); })
-  .finally(() => prisma.$disconnect());
+main().catch((e) => { console.error(e); process.exit(1); });

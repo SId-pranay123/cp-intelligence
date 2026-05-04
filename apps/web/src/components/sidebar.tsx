@@ -41,19 +41,29 @@ export default function Sidebar({ handle }: { handle?: string }) {
         ))}
       </nav>
 
-      {/* Bottom: CF link */}
-      {handle && (
-        <div className="px-5 py-4 border-t border-[#1a1a2a]">
+      {/* Bottom */}
+      <div className="px-4 py-4 border-t border-[#1a1a2a] space-y-2">
+        <Link
+          href="/setup"
+          className="w-full flex items-center gap-2 px-3 py-2 rounded text-xs text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 border border-indigo-500/20 hover:border-indigo-500/40 transition-colors"
+        >
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          Setup / Sync CF
+        </Link>
+        {handle && (
           <a
             href={`https://codeforces.com/profile/${handle}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[11px] text-slate-500 hover:text-indigo-400 transition-colors font-mono"
+            className="block text-[11px] text-slate-500 hover:text-indigo-400 transition-colors font-mono px-3"
           >
             cf/{handle} ↗
           </a>
-        </div>
-      )}
+        )}
+      </div>
     </aside>
   );
 }
