@@ -1,0 +1,16 @@
+{
+  "name": "cp-intelligence",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "apps/api",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm -w apps/web run dev",
+    "dev:api": "npm -w apps/api run start:dev",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down"
+  }
+}

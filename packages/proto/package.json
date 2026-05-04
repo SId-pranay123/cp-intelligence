@@ -1,0 +1,9 @@
+{
+  "name": "@cp-intelligence/proto",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "files": [
+    "*.proto"
+  ]
+}

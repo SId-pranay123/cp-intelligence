@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ──────────────────────────────────────────────
+// Models
+// ──────────────────────────────────────────────
+
+model User {
+  id                 String   @id @default(uuid())
+  email              String   @unique
+  username           String   @unique
+  passwordHash       String   @map("password_hash")
+  codeforcesHandle   String?  @unique @map("codeforces_handle")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  submissions        CodeforcesSubmission[]
+  problemActivities  UserProblemActivity[]
+
+  @@map("users")
+}
+
+model CodeforcesSubmission {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  submissionId String   @map("submission_id")
+  problemId    String   @map("problem_id")
+  problemName  String   @map("problem_name")
+  problemTags  String[] @map("problem_tags")
+  verdict      String
+  language     String
+  submittedAt  DateTime @map("submitted_at")
+  timeTakenMs  Int?     @map("time_taken_ms")
+  memoryUsed   Int?     @map("memory_used")
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, problemId, submissionId], name: "userId_problemId_submissionId")
+  @@index([userId])
+  @@index([problemId])
+  @@map("codeforces_submissions")
+}
+
+model UserProblemActivity {
+  id                String    @id @default(uuid())
+  userId            String    @map("user_id")
+  problemId         String    @map("problem_id")
+  source            String
+  attempts          Int       @default(0)
+  solvedAt          DateTime? @map("solved_at")
+  timeTakenMinutes  Int?      @map("time_taken_minutes")
+  confidenceRating  Int?      @map("confidence_rating")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem           Problem   @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, problemId])
+  @@index([userId])
+  @@map("user_problem_activity")
+}
+
+model Problem {
+  id         String   @id @default(uuid())
+  source     String
+  externalId String   @map("external_id")
+  title      String
+  difficulty String?
+  link       String
+  conceptIds String[] @map("concept_ids")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  activities UserProblemActivity[]
+
+  @@unique([source, externalId])
+  @@index([source])
+  @@map("problems")
+}

@@ -1,0 +1,21 @@
+# JS / Node
+node_modules/
+.next/
+dist/
+build/
+
+# Env files
+.env
+.env.local
+.env.*.local
+
+# Go
+apps/processor/bin/
+apps/processor/gen/
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/

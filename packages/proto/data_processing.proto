@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+package dataprocessing;
+
+option go_package = "github.com/cp-intelligence/processor/gen/proto";
+
+// ──────────────────────────────────────────────
+// Service
+// ──────────────────────────────────────────────
+
+service DataProcessingService {
+  rpc ProcessSubmissions(SubmissionBatch)       returns (SkillProfile);
+  rpc GetRecommendations(RecommendationRequest) returns (RecommendationResponse);
+  rpc UpdateConfidence(ConfidenceUpdate)         returns (UpdateResult);
+  rpc GetSkillProfile(UserRequest)              returns (SkillProfile);
+}
+
+// ──────────────────────────────────────────────
+// Messages
+// ──────────────────────────────────────────────
+
+message Submission {
+  string problem_id    = 1;
+  string problem_name  = 2;
+  repeated string tags = 3;
+  string verdict       = 4;
+  string language      = 5;
+  int64  submitted_at  = 6;
+  int32  time_taken_ms = 7;
+  int32  memory_used   = 8;
+  int32  problem_rating = 9;  // Codeforces problem rating (0 = unknown)
+}
+
+message SubmissionBatch {
+  string user_id          = 1;
+  repeated Submission submissions = 2;
+}
+
+message ConceptStrength {
+  string concept_id    = 1;
+  string concept_name  = 2;
+  double strength      = 3;
+  int64  last_practiced = 4;
+}
+
+message SkillProfile {
+  string user_id                          = 1;
+  repeated ConceptStrength concepts       = 2;
+}
+
+message RecommendationRequest {
+  string user_id = 1;
+}
+
+message Problem {
+  string id         = 1;
+  string title      = 2;
+  string link       = 3;
+  string difficulty = 4;
+  string source     = 5;
+}
+
+message Recommendation {
+  Problem problem        = 1;
+  string  concept_name   = 2;
+  string  reason         = 3;
+}
+
+message RecommendationResponse {
+  string user_id                           = 1;
+  repeated Recommendation recommendations  = 2;
+}
+
+message ConfidenceUpdate {
+  string user_id    = 1;
+  string concept_id = 2;
+  int32  rating     = 3;
+}
+
+message UpdateResult {
+  bool success = 1;
+}
+
+message UserRequest {
+  string user_id = 1;
+}
