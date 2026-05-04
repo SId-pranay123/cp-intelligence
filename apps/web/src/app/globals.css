@@ -1,3 +1,77 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --bg-base: #06060a;
+  --bg-surface: #0d0d15;
+  --bg-card: #111119;
+  --border: #1a1a2a;
+  --border-hover: #2a2a3e;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #475569;
+  --accent: #818cf8;
+  --accent-glow: rgba(129, 140, 248, 0.15);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Thin scrollbars throughout */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-hover);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a5e;
+}
+
+/* Horizontal scroll container — hide scrollbar but keep functionality */
+.scroll-x {
+  overflow-x: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scroll-x::-webkit-scrollbar {
+  display: none;
+}
+
+/* Strength color utilities used by heatmap and graph */
+.strength-none    { background: #111119; color: #475569; border-color: #1a1a2a; }
+.strength-low     { background: #3b0a0a; color: #fca5a5; border-color: #7f1d1d; }
+.strength-mid-low { background: #78350f; color: #fcd34d; border-color: #92400e; }
+.strength-mid     { background: #1a3a1a; color: #86efac; border-color: #166534; }
+.strength-high    { background: #14532d; color: #4ade80; border-color: #15803d; }
+.strength-max     { background: #052e16; color: #22c55e; border-color: #16a34a; }
+
+/* Graph tooltip */
+.graph-tooltip {
+  position: fixed;
+  background: var(--bg-card);
+  border: 1px solid var(--border-hover);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  pointer-events: none;
+  z-index: 9999;
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}

@@ -16,39 +16,46 @@ export default function SyncButton() {
       if (!res.ok) throw new Error(data.message ?? data.error ?? 'Sync failed');
       setSynced(data.synced as number);
       setState('done');
-      // Refresh server component data
       router.refresh();
-      setTimeout(() => setState('idle'), 4000);
+      setTimeout(() => setState('idle'), 5000);
     } catch {
       setState('error');
       setTimeout(() => setState('idle'), 3000);
     }
   }
 
-  const label = {
-    idle: 'Sync CF',
-    loading: 'Syncing…',
-    done: `Synced ${synced} submissions`,
-    error: 'Sync failed',
-  }[state];
-
-  const cls = {
-    idle: 'bg-indigo-600 hover:bg-indigo-500 text-white',
-    loading: 'bg-indigo-800 text-indigo-300 cursor-not-allowed',
-    done: 'bg-green-700 text-green-100',
-    error: 'bg-red-800 text-red-100',
+  const configs = {
+    idle: {
+      label: 'Sync',
+      cls: 'border-[#2a2a3e] text-slate-300 hover:border-indigo-500 hover:text-indigo-300',
+    },
+    loading: {
+      label: 'Syncing…',
+      cls: 'border-indigo-800 text-indigo-400 cursor-not-allowed',
+    },
+    done: {
+      label: `↑ ${synced?.toLocaleString()} synced`,
+      cls: 'border-emerald-800 text-emerald-400',
+    },
+    error: {
+      label: 'Sync failed',
+      cls: 'border-red-900 text-red-400',
+    },
   }[state];
 
   return (
     <button
       disabled={state === 'loading'}
       onClick={handleSync}
-      className={`px-4 py-1.5 rounded text-sm font-medium transition-all ${cls}`}
+      className={`
+        flex items-center gap-2 px-3 py-1.5 rounded border text-xs font-mono
+        transition-all duration-200 ${configs.cls}
+      `}
     >
       {state === 'loading' && (
-        <span className="inline-block w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mr-2 align-middle" />
+        <span className="w-3 h-3 border border-indigo-400 border-t-transparent rounded-full animate-spin" />
       )}
-      {label}
+      {configs.label}
     </button>
   );
 }

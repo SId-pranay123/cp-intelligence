@@ -19,13 +19,20 @@ export default function AuthPage() {
     setError('');
     setLoading(true);
     try {
+      const body = tab === 'register'
+        ? { email, username, password }
+        : { email, password };
+
       const res = await fetch(`/api/auth/${tab}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(tab === 'register' ? { email, username, password } : { email, password }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? 'Authentication failed');
+      if (!res.ok) {
+        const msg = Array.isArray(data.message) ? data.message.join(', ') : (data.message ?? 'Failed');
+        throw new Error(msg);
+      }
       router.push(tab === 'register' ? '/setup' : '/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
@@ -35,26 +42,85 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        {/* Logo / title */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-100">CP Intelligence</h1>
-          <p className="text-sm text-gray-500 mt-1">Track your competitive programming skills</p>
+    <div className="min-h-screen flex">
+      {/* Left — brand panel */}
+      <div className="hidden lg:flex flex-col justify-between w-[45%] bg-[#0d0d15] border-r border-[#1a1a2a] p-12">
+        <div>
+          <div className="flex items-center gap-2 mb-16">
+            <span className="text-[10px] font-mono text-indigo-400 tracking-widest uppercase">CP</span>
+            <span className="w-px h-3 bg-[#2a2a3e]" />
+            <span className="text-sm font-semibold text-slate-200">Intelligence</span>
+          </div>
+
+          <h2 className="text-4xl font-semibold text-slate-100 leading-[1.2] mb-6">
+            Know exactly<br />
+            what to practice<br />
+            next.
+          </h2>
+          <p className="text-slate-500 text-sm leading-relaxed max-w-xs">
+            Syncs your Codeforces history, scores 71 DSA concepts,
+            and surfaces the problems that move your weakest skills forward.
+          </p>
         </div>
 
-        <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
+        {/* Feature list */}
+        <div className="space-y-3">
+          {[
+            '71-concept knowledge graph',
+            'Submission-based strength scoring',
+            'AI-generated problem reasoning',
+            'Dependency-aware recommendations',
+          ].map((f) => (
+            <div key={f} className="flex items-center gap-3 text-sm text-slate-500">
+              <span className="w-1 h-1 rounded-full bg-indigo-500 flex-shrink-0" />
+              {f}
+            </div>
+          ))}
+        </div>
+
+        {/* Grid decoration */}
+        <div
+          className="absolute inset-0 opacity-[0.03] pointer-events-none"
+          style={{
+            backgroundImage:
+              'linear-gradient(#818cf8 1px, transparent 1px), linear-gradient(90deg, #818cf8 1px, transparent 1px)',
+            backgroundSize: '40px 40px',
+          }}
+        />
+      </div>
+
+      {/* Right — form */}
+      <div className="flex-1 flex items-center justify-center px-8 bg-[#06060a]">
+        <div className="w-full max-w-sm">
+          {/* Mobile logo */}
+          <div className="lg:hidden mb-8 text-center">
+            <p className="text-xs font-mono text-indigo-400 tracking-widest uppercase">
+              CP Intelligence
+            </p>
+          </div>
+
+          <h3 className="text-xl font-semibold text-slate-100 mb-1">
+            {tab === 'login' ? 'Welcome back' : 'Create account'}
+          </h3>
+          <p className="text-sm text-slate-500 mb-8">
+            {tab === 'login'
+              ? 'Sign in to your account'
+              : 'Start tracking your CP skills'}
+          </p>
+
           {/* Tabs */}
-          <div className="flex mb-6 bg-gray-800 rounded-md p-1 gap-1">
+          <div className="flex mb-6 bg-[#111119] border border-[#1a1a2a] rounded p-0.5 gap-0.5">
             {(['login', 'register'] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => { setTab(t); setError(''); setUsername(''); }}
-                className={`flex-1 py-1.5 rounded text-sm font-medium transition-colors ${
-                  tab === t
+                className={`
+                  flex-1 py-1.5 rounded text-xs font-mono font-medium transition-all
+                  ${tab === t
                     ? 'bg-indigo-600 text-white'
-                    : 'text-gray-400 hover:text-gray-200'
-                }`}
+                    : 'text-slate-500 hover:text-slate-300'
+                  }
+                `}
               >
                 {t === 'login' ? 'Log In' : 'Register'}
               </button>
@@ -63,8 +129,7 @@ export default function AuthPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {tab === 'register' && (
-              <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1.5">Username</label>
+              <Field label="Username">
                 <input
                   type="text"
                   required
@@ -74,26 +139,23 @@ export default function AuthPage() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="your_handle"
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                  className={inputCls}
                 />
-                <p className="text-[10px] text-gray-600 mt-1">Letters, numbers, underscores · 3–30 chars</p>
-              </div>
+              </Field>
             )}
 
-            <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">Email</label>
+            <Field label="Email">
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                className={inputCls}
               />
-            </div>
+            </Field>
 
-            <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">Password</label>
+            <Field label="Password">
               <input
                 type="password"
                 required
@@ -101,26 +163,51 @@ export default function AuthPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                className={inputCls}
               />
-            </div>
+            </Field>
 
             {error && (
-              <p className="text-xs text-red-400 bg-red-950 border border-red-900 rounded px-3 py-2">
-                {error}
-              </p>
+              <div className="border border-red-900 bg-red-950 rounded px-3 py-2">
+                <p className="text-xs text-red-400">{error}</p>
+              </div>
             )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 disabled:cursor-not-allowed text-white rounded py-2 text-sm font-medium transition-colors"
+              className="
+                w-full bg-indigo-600 hover:bg-indigo-500
+                disabled:bg-indigo-900 disabled:cursor-not-allowed
+                text-white rounded py-2.5 text-sm font-medium
+                transition-colors mt-2
+              "
             >
-              {loading ? 'Please wait…' : tab === 'login' ? 'Log In' : 'Create Account'}
+              {loading
+                ? 'Please wait…'
+                : tab === 'login' ? 'Log In' : 'Create Account'}
             </button>
           </form>
         </div>
       </div>
+    </div>
+  );
+}
+
+const inputCls = `
+  w-full bg-[#111119] border border-[#1a1a2a] hover:border-[#2a2a3e]
+  focus:border-indigo-600 focus:outline-none
+  rounded px-3 py-2 text-sm text-slate-200 placeholder-slate-600
+  font-mono transition-colors
+`.trim();
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-mono uppercase tracking-wider text-slate-500 mb-1.5">
+        {label}
+      </label>
+      {children}
     </div>
   );
 }
