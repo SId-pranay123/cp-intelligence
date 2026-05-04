@@ -21,4 +21,4 @@ echo "Starting Go processor…"
 
 # Start NestJS API in foreground — Render routes external traffic here
 echo "Starting NestJS API…"
-exec node apps/api/dist/main
+exec node apps/api/dist/src/main
