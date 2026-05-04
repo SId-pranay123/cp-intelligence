@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -93,44 +94,70 @@ func (s *Server) GetRecommendations(
 		log.Printf("GetRecommendations: weak[%d] concept=%s strength=%.1f cfTags=%v", i, wc.ConceptID, wc.Strength, wc.CFTags)
 	}
 
-	var recs []*pb.Recommendation
+	type result struct {
+		rec   *pb.Recommendation
+		index int
+	}
 
-	for _, concept := range weakConcepts {
-		// 2. Find an unsolved problem matching this concept from the problems table
-		problems, pgErr := postgres.UnsolvedByConceptIDs(ctx, s.pg, req.UserId, concept.CFTags, 1)
-		if pgErr != nil {
-			log.Printf("GetRecommendations: pg query failed concept=%s: %v", concept.ConceptID, pgErr)
-		}
-		if len(problems) == 0 {
-			continue
-		}
-		p := problems[0]
+	resultsCh := make(chan result, len(weakConcepts))
+	var wg sync.WaitGroup
 
-		// 3. Ask AI for a human-readable reason (falls back to template on error)
-		reason := fmt.Sprintf("Practise %s to strengthen your %.0f%% skill in %s.",
-			p.ProblemName, concept.Strength, concept.ConceptName)
-		if s.ai != nil {
-			resp, aiErr := s.ai.GenerateRecommendationReason(ctx, ai.ReasonRequest{
-				ConceptName:     concept.ConceptName,
-				ConceptStrength: concept.Strength,
-				ProblemTitle:    p.ProblemName,
-			})
-			if aiErr == nil && resp.Reason != "" {
-				reason = resp.Reason
+	for i, concept := range weakConcepts {
+		wg.Add(1)
+		go func(idx int, c graph.WeakConcept) {
+			defer wg.Done()
+
+			problems, pgErr := postgres.UnsolvedByConceptIDs(ctx, s.pg, req.UserId, c.CFTags, 1)
+			if pgErr != nil {
+				log.Printf("GetRecommendations: pg query failed concept=%s: %v", c.ConceptID, pgErr)
 			}
-		}
+			if len(problems) == 0 {
+				return
+			}
+			p := problems[0]
 
-		recs = append(recs, &pb.Recommendation{
-			Problem: &pb.Problem{
-				Id:         p.ProblemID,
-				Title:      p.ProblemName,
-				Link:       p.Link,
-				Difficulty: p.Difficulty,
-				Source:     "codeforces",
-			},
-			ConceptName: concept.ConceptName,
-			Reason:      reason,
-		})
+			reason := fmt.Sprintf("Practise %s to strengthen your %.0f%% skill in %s.",
+				p.ProblemName, c.Strength, c.ConceptName)
+			if s.ai != nil {
+				resp, aiErr := s.ai.GenerateRecommendationReason(ctx, ai.ReasonRequest{
+					ConceptName:     c.ConceptName,
+					ConceptStrength: c.Strength,
+					ProblemTitle:    p.ProblemName,
+				})
+				if aiErr == nil && resp.Reason != "" {
+					reason = resp.Reason
+				}
+			}
+
+			resultsCh <- result{
+				index: idx,
+				rec: &pb.Recommendation{
+					Problem: &pb.Problem{
+						Id:         p.ProblemID,
+						Title:      p.ProblemName,
+						Link:       p.Link,
+						Difficulty: p.Difficulty,
+						Source:     "codeforces",
+					},
+					ConceptName: c.ConceptName,
+					Reason:      reason,
+				},
+			}
+		}(i, concept)
+	}
+
+	wg.Wait()
+	close(resultsCh)
+
+	ordered := make([]*pb.Recommendation, len(weakConcepts))
+	for r := range resultsCh {
+		ordered[r.index] = r.rec
+	}
+	var recs []*pb.Recommendation
+	for _, r := range ordered {
+		if r != nil {
+			recs = append(recs, r)
+		}
 	}
 
 	log.Printf("GetRecommendations: returning %d recommendations for user=%s", len(recs), req.UserId)
