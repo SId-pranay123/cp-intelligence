@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: cp-intelligence
+    region: oregon
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: GO_SERVICE_URL
+        value: localhost:50051
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: llama-3.1-8b-instant
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-1.5-flash
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: AI_PROVIDER
+        value: groq
+      - key: NEO4J_URI
+        sync: false
+      - key: NEO4J_USERNAME
+        sync: false
+      - key: NEO4J_PASSWORD
+        sync: false
+      - key: POSTGRES_URL
+        sync: false
+      - key: GRPC_PORT
+        value: 50051
