@@ -132,6 +132,7 @@ export class ProcessorService implements OnModuleInit, OnModuleDestroy {
         },
         cb,
       ),
+    30_000,
     );
   }
 
