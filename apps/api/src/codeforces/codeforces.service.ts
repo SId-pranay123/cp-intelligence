@@ -65,21 +65,23 @@ export class CodeforcesService {
       );
     }
 
+    const t0 = Date.now();
+    this.logger.log(`sync: start user=${user.id} handle=${user.codeforcesHandle}`);
+
     const submissions = await this.fetchSubmissions(user.codeforcesHandle);
+    this.logger.log(`sync: fetched ${submissions.length} submissions in ${Date.now() - t0}ms`);
 
-    // Upsert problems first (synchronous — needed before ProcessSubmissions)
+    const t1 = Date.now();
     await this.upsertProblems(submissions);
+    this.logger.log(`sync: upsertProblems done in ${Date.now() - t1}ms`);
 
+    const t2 = Date.now();
     const synced = await this.upsertSubmissions(user.id, submissions);
+    this.logger.log(`sync: upsertSubmissions done in ${Date.now() - t2}ms (${synced} rows)`);
 
-    this.logger.log(
-      `Synced ${synced} submissions for user ${user.id} (handle: ${user.codeforcesHandle})`,
-    );
-
-    // Invalidate the recommendations cache so the next GET reflects new scores.
     await this.redis.del(`recommendations:${user.id}`);
+    this.logger.log(`sync: total=${Date.now() - t0}ms user=${user.id}`);
 
-    // Fire-and-forget: score the full submission history in the Go service.
     this.prisma.codeforcesSubmission
       .findMany({ where: { userId: user.id } })
       .then((stored) =>
