@@ -33,8 +33,7 @@ export default function AuthPage() {
         const msg = Array.isArray(data.message) ? data.message.join(', ') : (data.message ?? 'Failed');
         throw new Error(msg);
       }
-      router.refresh();
-      router.push(tab === 'register' ? '/setup' : '/dashboard');
+      window.location.href = tab === 'register' ? '/setup' : '/dashboard';
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
