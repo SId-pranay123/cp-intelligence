@@ -42,8 +42,11 @@ func (s *Server) ProcessSubmissions(
 	log.Printf("ProcessSubmissions: computed %d concept strengths for user=%s", len(strengths), req.UserId)
 
 	if s.neo4j != nil {
-		if err := neo4jgraph.UpsertSkillProfile(ctx, s.neo4j, req.UserId, strengths); err != nil {
-			// Log but don't fail the RPC — NestJS should still get the profile back
+		// Use a detached context so Neo4j write survives client-side cancellation
+		// (NestJS has a gRPC timeout that may fire before the write completes).
+		writeCtx, writeCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer writeCancel()
+		if err := neo4jgraph.UpsertSkillProfile(writeCtx, s.neo4j, req.UserId, strengths); err != nil {
 			log.Printf("ProcessSubmissions: neo4j write failed for user=%s: %v", req.UserId, err)
 		}
 	}
@@ -52,21 +55,34 @@ func (s *Server) ProcessSubmissions(
 }
 
 // GetSkillProfile reads a user's concept strengths from Neo4j.
+// Falls back to recomputing from Postgres submissions when Neo4j is unavailable
+// or has no data for this user yet.
 func (s *Server) GetSkillProfile(
 	ctx context.Context,
 	req *pb.UserRequest,
 ) (*pb.SkillProfile, error) {
 	log.Printf("GetSkillProfile: user=%s", req.UserId)
 
-	if s.neo4j == nil {
+	if s.neo4j != nil {
+		strengths, err := neo4jgraph.ReadSkillProfile(ctx, s.neo4j, req.UserId)
+		if err != nil {
+			log.Printf("GetSkillProfile: neo4j read failed for user=%s: %v", req.UserId, err)
+		} else if len(strengths) > 0 {
+			return buildSkillProfile(req.UserId, strengths), nil
+		}
+	}
+
+	// Postgres fallback: recompute strengths from raw submissions.
+	subs, err := postgres.FetchUserSubmissions(ctx, s.pg, req.UserId)
+	if err != nil {
+		log.Printf("GetSkillProfile: postgres fetch failed for user=%s: %v", req.UserId, err)
 		return &pb.SkillProfile{UserId: req.UserId}, nil
 	}
-
-	strengths, err := neo4jgraph.ReadSkillProfile(ctx, s.neo4j, req.UserId)
-	if err != nil {
-		return nil, fmt.Errorf("read skill profile: %w", err)
+	if len(subs) == 0 {
+		return &pb.SkillProfile{UserId: req.UserId}, nil
 	}
-
+	log.Printf("GetSkillProfile: computing from %d postgres submissions for user=%s", len(subs), req.UserId)
+	strengths := scoring.Compute(subs)
 	return buildSkillProfile(req.UserId, strengths), nil
 }
 
@@ -79,14 +95,17 @@ func (s *Server) GetRecommendations(
 	log.Printf("GetRecommendations: user=%s", req.UserId)
 
 	if s.neo4j == nil {
-		return &pb.RecommendationResponse{UserId: req.UserId}, nil
+		return s.recommendationsFromPostgres(ctx, req.UserId)
 	}
 
 	// 1. Find unlocked weak concepts from Neo4j
 	weakConcepts, err := graph.UnlockedWeakConcepts(ctx, s.neo4j, req.UserId, 5)
 	if err != nil {
 		log.Printf("GetRecommendations: neo4j query failed for user=%s: %v", req.UserId, err)
-		return &pb.RecommendationResponse{UserId: req.UserId}, nil
+		return s.recommendationsFromPostgres(ctx, req.UserId)
+	}
+	if len(weakConcepts) == 0 {
+		return s.recommendationsFromPostgres(ctx, req.UserId)
 	}
 
 	log.Printf("GetRecommendations: found %d weak concepts for user=%s", len(weakConcepts), req.UserId)
@@ -206,6 +225,110 @@ func confidenceMultiplier(rating int32) float64 {
 	}
 }
 
+
+// recommendationsFromPostgres generates recommendations without Neo4j by
+// recomputing strengths from Postgres submissions and picking the weakest concepts.
+func (s *Server) recommendationsFromPostgres(ctx context.Context, userID string) (*pb.RecommendationResponse, error) {
+	log.Printf("GetRecommendations: falling back to postgres for user=%s", userID)
+
+	subs, err := postgres.FetchUserSubmissions(ctx, s.pg, userID)
+	if err != nil || len(subs) == 0 {
+		return &pb.RecommendationResponse{UserId: userID}, nil
+	}
+
+	strengths := scoring.Compute(subs)
+
+	// Sort ascending by strength, pick top 5 weak concepts (strength < 60).
+	weakConcepts := make([]graph.WeakConcept, 0, 5)
+	for _, cs := range strengths {
+		if cs.Strength < 60 {
+			weakConcepts = append(weakConcepts, graph.WeakConcept{
+				ConceptID:   cs.ConceptID,
+				ConceptName: cs.ConceptName,
+				Strength:    cs.Strength,
+				CFTags:      graph.ConceptToCFTags(cs.ConceptID),
+			})
+		}
+	}
+	// Simple insertion sort by strength ascending (slice is small)
+	for i := 1; i < len(weakConcepts); i++ {
+		key := weakConcepts[i]
+		j := i - 1
+		for j >= 0 && weakConcepts[j].Strength > key.Strength {
+			weakConcepts[j+1] = weakConcepts[j]
+			j--
+		}
+		weakConcepts[j+1] = key
+	}
+	if len(weakConcepts) > 5 {
+		weakConcepts = weakConcepts[:5]
+	}
+
+	type result struct {
+		rec   *pb.Recommendation
+		index int
+	}
+	resultsCh := make(chan result, len(weakConcepts))
+	var wg sync.WaitGroup
+
+	for i, concept := range weakConcepts {
+		wg.Add(1)
+		go func(idx int, c graph.WeakConcept) {
+			defer wg.Done()
+
+			problems, pgErr := postgres.UnsolvedByConceptIDs(ctx, s.pg, userID, c.CFTags, 1)
+			if pgErr != nil || len(problems) == 0 {
+				return
+			}
+			p := problems[0]
+
+			reason := fmt.Sprintf("Practise %s to strengthen your %.0f%% skill in %s.",
+				p.ProblemName, c.Strength, c.ConceptName)
+			if s.ai != nil {
+				resp, aiErr := s.ai.GenerateRecommendationReason(ctx, ai.ReasonRequest{
+					ConceptName:     c.ConceptName,
+					ConceptStrength: c.Strength,
+					ProblemTitle:    p.ProblemName,
+				})
+				if aiErr == nil && resp.Reason != "" {
+					reason = resp.Reason
+				}
+			}
+
+			resultsCh <- result{
+				index: idx,
+				rec: &pb.Recommendation{
+					Problem: &pb.Problem{
+						Id:         p.ProblemID,
+						Title:      p.ProblemName,
+						Link:       p.Link,
+						Difficulty: p.Difficulty,
+						Source:     "codeforces",
+					},
+					ConceptName: c.ConceptName,
+					Reason:      reason,
+				},
+			}
+		}(i, concept)
+	}
+
+	wg.Wait()
+	close(resultsCh)
+
+	ordered := make([]*pb.Recommendation, len(weakConcepts))
+	for r := range resultsCh {
+		ordered[r.index] = r.rec
+	}
+	var recs []*pb.Recommendation
+	for _, r := range ordered {
+		if r != nil {
+			recs = append(recs, r)
+		}
+	}
+
+	log.Printf("GetRecommendations: postgres fallback returning %d recommendations for user=%s", len(recs), userID)
+	return &pb.RecommendationResponse{UserId: userID, Recommendations: recs}, nil
+}
 
 func buildSkillProfile(userID string, strengths []scoring.ConceptStrength) *pb.SkillProfile {
 	concepts := make([]*pb.ConceptStrength, 0, len(strengths))
