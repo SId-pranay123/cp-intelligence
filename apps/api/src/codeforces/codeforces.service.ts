@@ -68,30 +68,35 @@ export class CodeforcesService {
     const t0 = Date.now();
     this.logger.log(`sync: start user=${user.id} handle=${user.codeforcesHandle}`);
 
+    // Fetch submissions synchronously — needed for the count we return immediately.
     const submissions = await this.fetchSubmissions(user.codeforcesHandle);
     this.logger.log(`sync: fetched ${submissions.length} submissions in ${Date.now() - t0}ms`);
 
-    const t1 = Date.now();
-    await this.upsertProblems(submissions);
-    this.logger.log(`sync: upsertProblems done in ${Date.now() - t1}ms`);
+    // Run the heavy DB work in the background so the HTTP response returns fast.
+    // Vercel's 60s function limit is shorter than the full upsert pipeline on
+    // Supabase free tier, so we must not await this.
+    const userId = user.id;
+    setImmediate(async () => {
+      try {
+        const t1 = Date.now();
+        await this.upsertProblems(submissions);
+        this.logger.log(`sync: upsertProblems done in ${Date.now() - t1}ms`);
 
-    const t2 = Date.now();
-    const synced = await this.upsertSubmissions(user.id, submissions);
-    this.logger.log(`sync: upsertSubmissions done in ${Date.now() - t2}ms (${synced} rows)`);
+        const t2 = Date.now();
+        await this.upsertSubmissions(userId, submissions);
+        this.logger.log(`sync: upsertSubmissions done in ${Date.now() - t2}ms`);
 
-    await this.redis.del(`recommendations:${user.id}`);
-    this.logger.log(`sync: total=${Date.now() - t0}ms user=${user.id}`);
+        await this.redis.del(`recommendations:${userId}`);
 
-    this.prisma.codeforcesSubmission
-      .findMany({ where: { userId: user.id } })
-      .then((stored) =>
-        this.processor.callProcessSubmissions(user.id, stored),
-      )
-      .catch((err) =>
-        this.logger.warn(`ProcessSubmissions failed for user ${user.id}: ${err}`),
-      );
+        const stored = await this.prisma.codeforcesSubmission.findMany({ where: { userId } });
+        await this.processor.callProcessSubmissions(userId, stored);
+        this.logger.log(`sync: background complete total=${Date.now() - t0}ms user=${userId}`);
+      } catch (err) {
+        this.logger.warn(`sync: background job failed user=${userId}: ${err}`);
+      }
+    });
 
-    return { synced };
+    return { synced: submissions.length };
   }
 
   // ── Private helpers ────────────────────────────────────────────────────────
