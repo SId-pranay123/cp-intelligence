@@ -5,7 +5,7 @@ interface Problem { id: string; title: string; link: string; difficulty: string;
 interface Recommendation { problem: Problem; concept_name: string; reason: string; }
 interface Props { recommendations: Recommendation[]; }
 
-function ConfidenceRating({ conceptName }: { conceptName: string }) {
+function ConfidenceRating({ conceptName, problemId, onRated }: { conceptName: string; problemId: string; onRated?: (r: number) => void }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -20,9 +20,11 @@ function ConfidenceRating({ conceptName }: { conceptName: string }) {
         body: JSON.stringify({
           conceptId: conceptName.toLowerCase().replace(/\s+/g, '-'),
           confidenceRating: r,
+          problemId,
         }),
       });
       setDone(true);
+      onRated?.(r);
     } finally {
       setLoading(false);
     }
@@ -103,7 +105,7 @@ export default function ProblemsRow({ recommendations }: Props) {
             </p>
 
             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-              <ConfidenceRating conceptName={rec.concept_name} />
+              <ConfidenceRating conceptName={rec.concept_name} problemId={rec.problem.id} />
               <a
                 href={rec.problem.link}
                 target="_blank" rel="noopener noreferrer"

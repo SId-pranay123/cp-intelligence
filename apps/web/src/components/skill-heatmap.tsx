@@ -1,5 +1,8 @@
 'use client';
+import { useState } from 'react';
+import Link from 'next/link';
 import { CONCEPT_GROUPS } from '@/lib/concepts';
+import ExplainPanel, { useExplainPanel } from './explain-panel';
 
 interface Props { strengths: Record<string, number>; }
 
@@ -13,6 +16,9 @@ function badgeStyle(s: number | undefined): React.CSSProperties {
 }
 
 export default function SkillHeatmap({ strengths }: Props) {
+  const { open, props, explain, close } = useExplainPanel();
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+
   return (
     <div>
       {/* Legend */}
@@ -39,21 +45,52 @@ export default function SkillHeatmap({ strengths }: Props) {
               {group.concepts.map((c) => {
                 const s = strengths[c.id];
                 const score = s !== undefined && s > 0 ? Math.round(s) : 0;
+                const isHovered = hoveredId === c.id;
+
                 return (
                   <div
                     key={c.id}
-                    title={`${c.name}: ${score > 0 ? score + '%' : 'no data'}`}
-                    style={{
-                      ...badgeStyle(s),
-                      borderRadius: 6,
-                      padding: '6px 12px',
-                      fontSize: 13,
-                      fontWeight: 500,
-                      cursor: 'default',
-                      whiteSpace: 'nowrap',
-                    }}
+                    style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
+                    onMouseEnter={() => setHoveredId(c.id)}
+                    onMouseLeave={() => setHoveredId(null)}
                   >
-                    {c.name}{score > 0 ? ` ${score}` : ''}
+                    <Link
+                      href={`/dashboard/drill/${c.id}`}
+                      title={`Drill ${c.name} — ${score > 0 ? score + '%' : 'no data'}`}
+                      style={{
+                        ...badgeStyle(s),
+                        borderRadius: isHovered ? '6px 0 0 6px' : 6,
+                        padding: '6px 12px',
+                        fontSize: 13,
+                        fontWeight: 500,
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        textDecoration: 'none',
+                        display: 'inline-block',
+                        transition: 'border-radius 0.1s',
+                      }}
+                    >
+                      {c.name}{score > 0 ? ` ${score}` : ''}
+                    </Link>
+
+                    {isHovered && (
+                      <button
+                        onClick={() => explain({ conceptId: c.id, conceptName: c.name, strength: score })}
+                        title="AI explanation"
+                        style={{
+                          ...badgeStyle(s),
+                          borderLeft: 'none',
+                          borderRadius: '0 6px 6px 0',
+                          padding: '6px 8px',
+                          fontSize: 12,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          fontWeight: 600,
+                        }}
+                      >
+                        ?
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -61,6 +98,15 @@ export default function SkillHeatmap({ strengths }: Props) {
           </div>
         ))}
       </div>
+
+      {open && props && (
+        <ExplainPanel
+          conceptId={props.conceptId}
+          conceptName={props.conceptName}
+          strength={props.strength}
+          onClose={close}
+        />
+      )}
     </div>
   );
 }

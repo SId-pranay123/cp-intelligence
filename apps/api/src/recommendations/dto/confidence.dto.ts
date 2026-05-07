@@ -1,4 +1,4 @@
-import { IsString, IsInt, Min, Max } from 'class-validator';
+import { IsString, IsInt, IsOptional, Min, Max } from 'class-validator';
 
 export class ConfidenceDto {
   @IsString()
@@ -8,4 +8,8 @@ export class ConfidenceDto {
   @Min(1)
   @Max(5)
   confidenceRating!: number;
+
+  @IsString()
+  @IsOptional()
+  problemId?: string;
 }

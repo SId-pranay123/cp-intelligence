@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Body,
+  Query,
   UseGuards,
   Request,
   HttpCode,
@@ -32,6 +33,19 @@ export class RecommendationsController {
     return this.recommendations.getSkillProfile(req.user.id);
   }
 
+  @Get('concept-problems')
+  getConceptProblems(
+    @Request() req: AuthRequest,
+    @Query('conceptId') conceptId: string,
+  ) {
+    return this.recommendations.getConceptProblems(req.user.id, conceptId);
+  }
+
+  @Get('review-queue')
+  getReviewQueue(@Request() req: AuthRequest) {
+    return this.recommendations.getReviewQueue(req.user.id);
+  }
+
   @Post('confidence')
   @HttpCode(HttpStatus.OK)
   updateConfidence(
@@ -42,6 +56,7 @@ export class RecommendationsController {
       req.user.id,
       dto.conceptId,
       dto.confidenceRating,
+      dto.problemId,
     );
   }
 }

@@ -57,6 +57,8 @@ model UserProblemActivity {
   solvedAt          DateTime? @map("solved_at")
   timeTakenMinutes  Int?      @map("time_taken_minutes")
   confidenceRating  Int?      @map("confidence_rating")
+  nextReviewAt      DateTime? @map("next_review_at")
+  reviewCount       Int       @default(0) @map("review_count")
   createdAt         DateTime  @default(now()) @map("created_at")
 
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)

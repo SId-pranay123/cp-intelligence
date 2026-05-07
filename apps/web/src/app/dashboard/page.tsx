@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { apiFetch } from '@/lib/api';
 import { CONCEPT_GROUPS } from '@/lib/concepts';
+import RatingCard from '@/components/rating-card';
 
 interface RawSkillProfile {
   concepts?: Array<{ concept_id: string; concept_name: string; strength: number }>;
@@ -23,9 +24,19 @@ function buildNameMap() {
   return map;
 }
 
+async function getCFHandle(token: string): Promise<string | undefined> {
+  try {
+    const data = await apiFetch<{ codeforcesHandle?: string }>('/auth/me', token);
+    return data.codeforcesHandle ?? undefined;
+  } catch { return undefined; }
+}
+
 export default async function OverviewPage() {
   const token = cookies().get('cp_token')!.value;
-  const strengths = await getStrengths(token);
+  const [strengths, cfHandle] = await Promise.all([
+    getStrengths(token),
+    getCFHandle(token),
+  ]);
   const nameMap = buildNameMap();
 
   const entries = Object.entries(strengths);
@@ -43,12 +54,13 @@ export default async function OverviewPage() {
     { label: 'Avg strength', sub: 'all concepts', value: avg, color: 'var(--accent)' },
   ];
 
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
       {/* OVERVIEW */}
       <section>
         <SectionLabel label="OVERVIEW" />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
           {statCards.map(({ label, sub, value, color }) => (
             <div key={label} style={{
               background: 'var(--bg-card)',
@@ -60,6 +72,7 @@ export default async function OverviewPage() {
               <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>{sub}</p>
             </div>
           ))}
+          <RatingCard strengths={strengths} cfHandle={cfHandle} />
         </div>
       </section>
 
