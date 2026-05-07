@@ -139,6 +139,7 @@ export class ProcessorService implements OnModuleInit, OnModuleDestroy {
   callGetRecommendations(userId: string): Promise<RecommendationResponse> {
     return this.call((cb) =>
       this.client!.GetRecommendations({ user_id: userId }, cb),
+    20_000,
     );
   }
 

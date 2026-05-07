@@ -369,25 +369,6 @@ func MapTagsToConceptIDs(tags []string) []string {
 	return result
 }
 
-// ConceptToCFTags returns the Codeforces problem tags that map to a given
-// concept ID. Used as a fallback when Neo4j is unavailable.
-func ConceptToCFTags(conceptID string) []string {
-	seen := make(map[string]bool)
-	var tags []string
-	for tag, ids := range CFTagMapping {
-		for _, id := range ids {
-			if id == conceptID && !seen[tag] {
-				seen[tag] = true
-				tags = append(tags, tag)
-			}
-		}
-	}
-	if len(tags) == 0 {
-		return []string{conceptID}
-	}
-	return tags
-}
-
 // ── SeedGraph ─────────────────────────────────────────────────────────────────
 
 // SeedGraph upserts all concept nodes and dependency edges into Neo4j.

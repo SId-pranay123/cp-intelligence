@@ -231,6 +231,10 @@ func confidenceMultiplier(rating int32) float64 {
 func (s *Server) recommendationsFromPostgres(ctx context.Context, userID string) (*pb.RecommendationResponse, error) {
 	log.Printf("GetRecommendations: falling back to postgres for user=%s", userID)
 
+	// Use a detached context so DB + AI work survives client-side gRPC deadline.
+	ctx, cancel := context.WithTimeout(context.Background(), 18*time.Second)
+	defer cancel()
+
 	subs, err := postgres.FetchUserSubmissions(ctx, s.pg, userID)
 	if err != nil || len(subs) == 0 {
 		return &pb.RecommendationResponse{UserId: userID}, nil
@@ -246,7 +250,7 @@ func (s *Server) recommendationsFromPostgres(ctx context.Context, userID string)
 				ConceptID:   cs.ConceptID,
 				ConceptName: cs.ConceptName,
 				Strength:    cs.Strength,
-				CFTags:      graph.ConceptToCFTags(cs.ConceptID),
+				CFTags:      []string{cs.ConceptID}, // concept_ids column stores concept IDs, not CF tags
 			})
 		}
 	}
