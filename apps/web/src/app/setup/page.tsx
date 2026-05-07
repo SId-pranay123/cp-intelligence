@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 type Step = 'handle' | 'syncing' | 'done';
@@ -10,7 +10,25 @@ export default function SetupPage() {
   const [handle, setHandle] = useState('');
   const [error, setError] = useState('');
   const [syncedCount, setSyncedCount] = useState<number | null>(null);
+  const [progress, setProgress] = useState(0);
+  const progressRef = useRef<NodeJS.Timeout | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    if (step === 'syncing') {
+      setProgress(0);
+      let p = 0;
+      progressRef.current = setInterval(() => {
+        p += Math.random() * 4;
+        if (p >= 90) { clearInterval(progressRef.current!); p = 90; }
+        setProgress(p);
+      }, 400);
+    } else if (step === 'done') {
+      if (progressRef.current) clearInterval(progressRef.current);
+      setProgress(100);
+    }
+    return () => { if (progressRef.current) clearInterval(progressRef.current); };
+  }, [step]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -18,7 +36,6 @@ export default function SetupPage() {
     setStep('syncing');
 
     try {
-      // Step 1 — set handle
       const setRes = await fetch('/api/codeforces/handle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -30,7 +47,6 @@ export default function SetupPage() {
         throw new Error(msg);
       }
 
-      // Step 2 — trigger sync
       const syncRes = await fetch('/api/sync', { method: 'POST' });
       if (!syncRes.ok) {
         const d = await syncRes.json();
@@ -39,148 +55,143 @@ export default function SetupPage() {
       const syncData = await syncRes.json();
       setSyncedCount(syncData.synced as number);
       setStep('done');
-      setTimeout(() => router.push('/dashboard'), 2000);
+      setTimeout(() => router.push('/dashboard'), 2500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
       setStep('handle');
     }
   }
 
+  const stepIndex = step === 'handle' ? 0 : step === 'syncing' ? 1 : 2;
+
   return (
-    <div className="min-h-screen bg-[#06060a] flex items-center justify-center px-6">
-      <div className="w-full max-w-md">
-        {/* Wordmark */}
-        <div className="mb-12 text-center">
-          <p className="text-[10px] font-mono tracking-widest text-indigo-400 uppercase mb-2">
-            CP Intelligence
-          </p>
-          <h1 className="text-2xl font-semibold text-slate-100">Connect Codeforces</h1>
-          <p className="text-sm text-slate-500 mt-2">
-            We&apos;ll import your full submission history to compute your skill profile.
-          </p>
-        </div>
+    <div style={{
+      minHeight: '100vh', background: '#0a0a0f',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '0 24px',
+    }}>
+      <div style={{ width: '100%', maxWidth: 600 }}>
 
         {/* Step indicator */}
-        <div className="flex items-center gap-0 mb-10">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 48 }}>
           {['Handle', 'Sync', 'Done'].map((label, i) => {
-            const stepIdx = step === 'handle' ? 0 : step === 'syncing' ? 1 : 2;
-            const active = i === stepIdx;
-            const done = i < stepIdx;
+            const active = i === stepIndex;
+            const done = i < stepIndex;
             return (
-              <div key={label} className="flex items-center flex-1 last:flex-none">
-                <div className="flex flex-col items-center">
-                  <div
-                    className={`
-                      w-7 h-7 rounded-full border flex items-center justify-center
-                      text-[11px] font-mono font-semibold transition-all
-                      ${done
-                        ? 'bg-emerald-600 border-emerald-500 text-white'
-                        : active
-                          ? 'bg-indigo-600 border-indigo-500 text-white'
-                          : 'bg-[#111119] border-[#2a2a3e] text-slate-600'
-                      }
-                    `}
-                  >
+              <div key={label} style={{ display: 'flex', alignItems: 'center' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                  <div style={{
+                    width: 52, height: 52, borderRadius: '50%',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 16, fontWeight: 600,
+                    background: done ? '#10b981' : active ? '#0d2818' : '#161b22',
+                    border: `2px solid ${done ? '#10b981' : active ? '#10b981' : '#30363d'}`,
+                    color: done ? '#fff' : active ? '#10b981' : '#484f58',
+                  }}>
                     {done ? '✓' : i + 1}
                   </div>
-                  <span className={`text-[10px] font-mono mt-1.5 ${active ? 'text-indigo-400' : done ? 'text-emerald-500' : 'text-slate-600'}`}>
-                    {label}
-                  </span>
                 </div>
                 {i < 2 && (
-                  <div className={`flex-1 h-px mx-3 mb-4 ${done ? 'bg-emerald-800' : 'bg-[#1a1a2a]'}`} />
+                  <div style={{
+                    width: 120, height: 1,
+                    background: done ? '#10b981' : '#30363d',
+                    margin: '0 0 0 0',
+                    flexShrink: 0,
+                  }} />
                 )}
               </div>
             );
           })}
         </div>
 
-        {/* Panel */}
-        <div className="bg-[#111119] border border-[#1a1a2a] rounded-lg p-7">
-          {step === 'handle' && (
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label className="block text-[11px] font-mono uppercase tracking-wider text-slate-500 mb-1.5">
-                  Codeforces Handle
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={handle}
-                  onChange={(e) => setHandle(e.target.value)}
-                  placeholder="e.g. tourist or pranay.2"
-                  className="
-                    w-full bg-[#0d0d15] border border-[#1a1a2a] hover:border-[#2a2a3e]
-                    focus:border-indigo-600 focus:outline-none rounded
-                    px-4 py-3 text-sm font-mono text-slate-200 placeholder-slate-600
-                    transition-colors
-                  "
-                />
-                <p className="text-[10px] text-slate-600 mt-1.5 font-mono">
-                  Your Codeforces username — we'll verify it exists before syncing.
-                </p>
-              </div>
+        {/* Title */}
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <h1 style={{ fontSize: 28, fontWeight: 700, color: '#f0f6fc', marginBottom: 10 }}>
+            Connect your Codeforces account
+          </h1>
+          <p style={{ fontSize: 14, color: '#8b949e' }}>
+            We&apos;ll sync your submission history to build your skill profile
+          </p>
+        </div>
 
-              {error && (
-                <div className="border border-red-900 bg-red-950 rounded px-4 py-3">
-                  <p className="text-xs text-red-400 font-mono">{error}</p>
-                </div>
-              )}
-
+        {/* Handle input step */}
+        {step === 'handle' && (
+          <form onSubmit={handleSubmit}>
+            <div style={{ display: 'flex', gap: 12, marginBottom: error ? 16 : 0 }}>
+              <input
+                type="text"
+                required
+                value={handle}
+                onChange={(e) => setHandle(e.target.value)}
+                placeholder="e.g. tourist or pranay.2"
+                style={{
+                  flex: 1,
+                  background: '#161b22',
+                  border: '1px solid #30363d',
+                  borderRadius: 8,
+                  padding: '12px 16px',
+                  fontSize: 15,
+                  fontFamily: 'monospace',
+                  color: '#f0f6fc',
+                  outline: 'none',
+                }}
+              />
               <button
                 type="submit"
-                className="
-                  w-full bg-indigo-600 hover:bg-indigo-500
-                  text-white rounded py-3 text-sm font-medium
-                  transition-colors
-                "
+                style={{
+                  padding: '12px 24px',
+                  borderRadius: 8,
+                  border: '1px solid #484f58',
+                  background: '#1c2128',
+                  color: '#f0f6fc',
+                  fontSize: 15,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}
               >
-                Connect & Sync
+                Verify & sync
               </button>
-            </form>
-          )}
-
-          {step === 'syncing' && (
-            <div className="py-6 text-center space-y-6">
-              <div className="flex justify-center">
-                <div className="w-10 h-10 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-              </div>
-              <div>
-                <p className="text-slate-200 font-medium">Importing submissions…</p>
-                <p className="text-slate-500 text-sm mt-1">
-                  This takes 5–30 seconds depending on your submission history.
-                </p>
-              </div>
-              <div className="space-y-2">
-                {['Fetching Codeforces API', 'Populating problems table', 'Processing submissions'].map(
-                  (label, i) => (
-                    <div key={label} className="flex items-center gap-3 text-xs font-mono text-slate-500">
-                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" style={{ animationDelay: `${i * 0.3}s` }} />
-                      {label}
-                    </div>
-                  )
-                )}
-              </div>
             </div>
-          )}
+            {error && (
+              <div style={{ marginTop: 12, background: '#2d1f1f', border: '1px solid #5c2626', borderRadius: 8, padding: '10px 14px' }}>
+                <p style={{ color: '#f87171', fontSize: 13 }}>{error}</p>
+              </div>
+            )}
+          </form>
+        )}
 
-          {step === 'done' && (
-            <div className="py-6 text-center space-y-4">
-              <div className="w-12 h-12 rounded-full bg-emerald-950 border border-emerald-800 flex items-center justify-center mx-auto text-emerald-400 text-xl">
-                ✓
-              </div>
-              <div>
-                <p className="text-slate-100 font-semibold">Sync complete</p>
-                {syncedCount !== null && (
-                  <p className="text-slate-500 text-sm mt-1">
-                    <span className="font-mono text-emerald-400">{syncedCount.toLocaleString()}</span> submissions imported
-                  </p>
-                )}
-                <p className="text-slate-600 text-xs mt-3">Redirecting to dashboard…</p>
-              </div>
+        {/* Syncing step */}
+        {(step === 'syncing' || step === 'done') && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <span style={{ color: '#8b949e', fontSize: 14 }}>
+                {step === 'done' ? 'Sync complete' : 'Syncing submissions...'}
+              </span>
+              {syncedCount !== null && (
+                <span style={{ color: '#10b981', fontSize: 14, fontWeight: 600, fontFamily: 'monospace' }}>
+                  {syncedCount.toLocaleString()} found
+                </span>
+              )}
             </div>
-          )}
-        </div>
+            {/* Progress bar */}
+            <div style={{ height: 6, background: '#30363d', borderRadius: 3, overflow: 'hidden', marginBottom: 12 }}>
+              <div style={{
+                height: '100%',
+                width: `${progress}%`,
+                background: '#10b981',
+                borderRadius: 3,
+                transition: 'width 0.4s ease',
+              }} />
+            </div>
+            <p style={{ color: '#6e7681', fontSize: 13, textAlign: 'center' }}>
+              {step === 'done'
+                ? 'Redirecting to dashboard…'
+                : 'Computing skill scores across 71 concept nodes'}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

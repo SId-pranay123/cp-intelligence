@@ -22,10 +22,10 @@ export default async function HeatmapPage() {
   const strengths = await getStrengths(token);
 
   return (
-    <div className="space-y-6">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div>
-        <h2 className="text-base font-semibold text-slate-100 mb-1">Skill Heatmap</h2>
-        <p className="text-xs font-mono text-slate-600">All 71 concepts grouped by category</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', marginBottom: 8 }}>SKILL HEATMAP</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: 12, fontFamily: 'monospace' }}>All 71 concepts grouped by category</p>
       </div>
       <SkillHeatmap strengths={strengths} />
     </div>

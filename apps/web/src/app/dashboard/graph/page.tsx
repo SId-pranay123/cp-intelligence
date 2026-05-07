@@ -22,10 +22,10 @@ export default async function GraphPage() {
   const strengths = await getStrengths(token);
 
   return (
-    <div className="space-y-6">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div>
-        <h2 className="text-base font-semibold text-slate-100 mb-1">Knowledge Graph</h2>
-        <p className="text-xs font-mono text-slate-600">71 concepts · dependency edges · node color = skill strength</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', marginBottom: 8 }}>KNOWLEDGE GRAPH</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: 12, fontFamily: 'monospace' }}>71 concepts · dependency edges · node color = skill strength</p>
       </div>
       <KnowledgeGraph strengths={strengths} />
     </div>

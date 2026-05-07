@@ -1,34 +1,11 @@
 'use client';
-
 import { useState } from 'react';
 
-interface Problem {
-  id: string;
-  title: string;
-  link: string;
-  difficulty: string;
-  source: string;
-}
+interface Problem { id: string; title: string; link: string; difficulty: string; source: string; }
+interface Recommendation { problem: Problem; concept_name: string; reason: string; }
+interface Props { recommendations: Recommendation[]; }
 
-interface Recommendation {
-  problem: Problem;
-  concept_name: string;
-  reason: string;
-}
-
-interface Props {
-  recommendations: Recommendation[];
-}
-
-const DIFF_STYLE: Record<string, string> = {
-  easy: 'text-emerald-400 border-emerald-900 bg-emerald-950',
-  medium: 'text-amber-400 border-amber-900 bg-amber-950',
-  hard: 'text-red-400 border-red-900 bg-red-950',
-  expert: 'text-purple-400 border-purple-900 bg-purple-950',
-  unknown: 'text-slate-400 border-slate-800 bg-slate-900',
-};
-
-function ConfidenceBar({ problemId, conceptName }: { problemId: string; conceptName: string }) {
+function ConfidenceRating({ conceptName }: { conceptName: string }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -51,34 +28,24 @@ function ConfidenceBar({ problemId, conceptName }: { problemId: string; conceptN
     }
   }
 
-  if (done) {
-    return (
-      <p className="text-xs font-mono text-emerald-500 mt-auto">
-        ✓ rated {selected}/5
-      </p>
-    );
-  }
+  if (done) return <span style={{ color: 'var(--accent)', fontSize: 13 }}>✓ Rated {selected}/5</span>;
 
   return (
-    <div className="mt-auto pt-4 border-t border-[#1a1a2a]">
-      <p className="text-[10px] font-mono text-slate-600 mb-2 uppercase tracking-wide">
-        Rate confidence
-      </p>
-      <div className="flex gap-1.5">
+    <div>
+      <p style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 8 }}>Rate confidence after solving</p>
+      <div style={{ display: 'flex', gap: 6 }}>
         {[1, 2, 3, 4, 5].map((r) => (
           <button
             key={r}
             disabled={loading}
             onClick={() => rate(r)}
-            className={`
-              w-8 h-8 rounded border text-xs font-mono font-semibold
-              transition-all duration-150
-              ${selected === r
-                ? 'bg-indigo-600 border-indigo-500 text-white'
-                : 'border-[#2a2a3e] text-slate-500 hover:border-indigo-600 hover:text-indigo-400'
-              }
-              disabled:opacity-40 disabled:cursor-not-allowed
-            `}
+            style={{
+              width: 32, height: 32, borderRadius: 6,
+              border: selected === r ? '1px solid var(--accent)' : '1px solid var(--border)',
+              background: selected === r ? 'var(--accent-surface)' : 'transparent',
+              color: selected === r ? 'var(--accent)' : 'var(--text-secondary)',
+              fontSize: 13, fontWeight: 500, cursor: 'pointer',
+            }}
           >
             {r}
           </button>
@@ -91,60 +58,63 @@ function ConfidenceBar({ problemId, conceptName }: { problemId: string; conceptN
 export default function ProblemsRow({ recommendations }: Props) {
   if (recommendations.length === 0) {
     return (
-      <div className="border border-[#1a1a2a] rounded-lg p-10 text-center">
-        <p className="text-slate-500 text-sm">No recommendations yet.</p>
-        <p className="text-slate-600 text-xs mt-1">Sync your Codeforces account to get started.</p>
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 40, textAlign: 'center' }}>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>No recommendations yet.</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 6 }}>Sync your Codeforces account to get started.</p>
       </div>
     );
   }
 
   return (
-    <div className="scroll-x">
-      <div className="flex gap-4 pb-2" style={{ minWidth: 'max-content' }}>
-        {recommendations.map((rec, i) => {
-          const diff = rec.problem.difficulty?.toLowerCase() ?? 'unknown';
-          const diffStyle = DIFF_STYLE[diff] ?? DIFF_STYLE.unknown;
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {recommendations.map((rec, i) => {
+        const diff = rec.problem.difficulty?.toLowerCase() ?? 'unknown';
+        const diffColor: Record<string, string> = {
+          easy: 'var(--accent)', medium: 'var(--warning)', hard: 'var(--danger)', expert: '#a78bfa', unknown: 'var(--text-muted)'
+        };
+        const dc = diffColor[diff] ?? 'var(--text-muted)';
 
-          return (
-            <div
-              key={`${rec.problem.id}-${i}`}
-              className="
-                flex flex-col bg-[#111119] border border-[#1a1a2a]
-                rounded-lg p-5 hover:border-[#2a2a3e] transition-colors
-              "
-              style={{ width: 300, minHeight: 260 }}
-            >
-              {/* Concept tag */}
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-indigo-400 bg-indigo-950 border border-indigo-900 px-2 py-0.5 rounded">
-                  {rec.concept_name}
-                </span>
-                <span className={`text-[10px] font-mono border px-2 py-0.5 rounded ${diffStyle}`}>
-                  {rec.problem.difficulty}
-                </span>
-              </div>
+        return (
+          <div key={`${rec.problem.id}-${i}`} style={{
+            background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 24,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <span style={{
+                background: 'var(--accent-surface)', border: '1px solid var(--accent)', borderRadius: 20,
+                padding: '3px 12px', color: 'var(--accent)', fontSize: 12, fontWeight: 500,
+              }}>
+                {rec.concept_name}
+              </span>
+              <span style={{
+                color: dc, fontSize: 12,
+                background: 'var(--bg-base)', border: `1px solid ${dc}44`,
+                borderRadius: 12, padding: '3px 10px',
+              }}>
+                {diff.charAt(0).toUpperCase() + diff.slice(1)}
+              </span>
+            </div>
 
-              {/* Problem title */}
+            <h3 style={{ color: 'var(--text-primary)', fontSize: 18, fontWeight: 700, marginBottom: 10 }}>
+              {rec.problem.title}
+            </h3>
+
+            <p style={{ color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.6, marginBottom: 20 }}>
+              {rec.reason}
+            </p>
+
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+              <ConfidenceRating conceptName={rec.concept_name} />
               <a
                 href={rec.problem.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-base font-semibold text-slate-100 hover:text-indigo-300 transition-colors leading-snug mb-2 group"
+                target="_blank" rel="noopener noreferrer"
+                style={{ color: 'var(--accent)', fontSize: 14, fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}
               >
-                {rec.problem.title}
-                <span className="text-slate-600 group-hover:text-indigo-400 ml-1 text-sm">↗</span>
+                Solve on CF ↗
               </a>
-
-              {/* AI reason */}
-              <p className="text-xs text-slate-500 italic leading-relaxed flex-1">
-                &ldquo;{rec.reason}&rdquo;
-              </p>
-
-              <ConfidenceBar problemId={rec.problem.id} conceptName={rec.concept_name} />
             </div>
-          );
-        })}
-      </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

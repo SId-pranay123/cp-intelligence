@@ -8,7 +8,6 @@ interface Props {
   strengths: Record<string, number>;
 }
 
-// D3 mutates these in place, so we declare x/y/fx/fy as optional
 interface GNode {
   id: string;
   name: string;
@@ -25,28 +24,44 @@ interface GLink {
   target: string | GNode;
 }
 
-function nodeColor(s: number): string {
-  if (s <= 0)  return '#1c1c2e';
-  if (s < 40)  return '#7f1d1d';
-  if (s < 70)  return '#78350f';
-  if (s < 85)  return '#14532d';
-  return '#15803d';
+function nodeRadius(s: number): number {
+  if (s >= 75) return 36;
+  if (s >= 40) return 30;
+  if (s > 0)   return 24;
+  return 18;
 }
 
-function nodeBorder(s: number): string {
-  if (s <= 0)  return '#2d2d46';
-  if (s < 40)  return '#991b1b';
-  if (s < 70)  return '#92400e';
-  if (s < 85)  return '#166534';
-  return '#16a34a';
+function nodeFill(s: number): string {
+  if (s >= 75) return '#10b981';
+  if (s >= 40) return '#065f46';
+  if (s > 0)   return '#1c2128';
+  return '#161b22';
 }
 
-function labelColor(s: number): string {
-  if (s <= 0)  return '#475569';
-  if (s < 40)  return '#f87171';
-  if (s < 70)  return '#fbbf24';
-  if (s < 85)  return '#86efac';
-  return '#4ade80';
+function nodeStroke(s: number): string {
+  if (s >= 75) return '#34d399';
+  if (s >= 40) return '#10b981';
+  if (s > 0)   return '#30363d';
+  return '#21262d';
+}
+
+function textFill(s: number): string {
+  if (s >= 75) return '#ffffff';
+  if (s >= 40) return '#6ee7b7';
+  if (s > 0)   return '#8b949e';
+  return '#484f58';
+}
+
+function textSize(name: string, r: number): number {
+  const base = r >= 36 ? 11 : r >= 30 ? 10 : 9;
+  return name.length > 8 ? base - 1 : base;
+}
+
+function wrapLabel(name: string): string[] {
+  const words = name.split(' ');
+  if (words.length === 1 || name.length <= 8) return [name];
+  const mid = Math.ceil(words.length / 2);
+  return [words.slice(0, mid).join(' '), words.slice(mid).join(' ')];
 }
 
 export default function KnowledgeGraph({ strengths }: Props) {
@@ -86,7 +101,7 @@ export default function KnowledgeGraph({ strengths }: Props) {
 
     svg.call(
       d3.zoom<SVGSVGElement, unknown>()
-        .scaleExtent([0.2, 4])
+        .scaleExtent([0.15, 3])
         .on('zoom', (ev) => root.attr('transform', ev.transform))
     );
 
@@ -99,73 +114,95 @@ export default function KnowledgeGraph({ strengths }: Props) {
         'link',
         d3.forceLink<GNode, GLink>(ld)
           .id((d) => d.id)
-          .distance(52)
-          .strength(0.35)
+          .distance(90)
+          .strength(0.3)
       )
-      .force('charge', d3.forceManyBody<GNode>().strength(-130))
+      .force('charge', d3.forceManyBody<GNode>().strength(-220))
       .force('center', d3.forceCenter(W / 2, H / 2))
-      .force('collide', d3.forceCollide<GNode>(13))
-      .alphaDecay(0.028);
+      .force('collide', d3.forceCollide<GNode>((d) => nodeRadius(d.strength) + 8))
+      .alphaDecay(0.025);
 
+    // Links
     const link = root
       .append('g')
       .selectAll<SVGLineElement, GLink>('line')
       .data(ld)
       .join('line')
-      .attr('stroke', '#1e1e30')
+      .attr('stroke', '#30363d')
       .attr('stroke-width', 1)
-      .attr('stroke-opacity', 0.6);
+      .attr('stroke-opacity', 0.5);
 
+    // Node groups
     const nodeG = root
       .append('g')
-      .selectAll<SVGCircleElement, GNode>('circle')
+      .selectAll<SVGGElement, GNode>('g')
       .data(nd)
-      .join('circle')
-      .attr('r', 8)
-      .attr('fill', (d) => nodeColor(d.strength))
-      .attr('stroke', (d) => nodeBorder(d.strength))
-      .attr('stroke-width', 1.5)
+      .join('g')
       .style('cursor', 'grab');
 
+    // Circles
+    nodeG
+      .append('circle')
+      .attr('r', (d) => nodeRadius(d.strength))
+      .attr('fill', (d) => nodeFill(d.strength))
+      .attr('stroke', (d) => nodeStroke(d.strength))
+      .attr('stroke-width', 1.5);
+
+    // Labels (potentially 2 lines)
+    nodeG.each(function (d) {
+      const g = d3.select(this);
+      const r = nodeRadius(d.strength);
+      const lines = wrapLabel(d.name);
+      const fs = textSize(d.name, r);
+      const lineH = fs + 2;
+
+      lines.forEach((line, i) => {
+        g.append('text')
+          .text(line)
+          .attr('text-anchor', 'middle')
+          .attr('dominant-baseline', 'middle')
+          .attr('y', lines.length === 2 ? (i === 0 ? -lineH / 2 : lineH / 2) : 0)
+          .attr('fill', textFill(d.strength))
+          .attr('font-size', fs)
+          .attr('font-weight', d.strength >= 40 ? '600' : '400')
+          .attr('font-family', 'ui-sans-serif, system-ui, sans-serif')
+          .style('pointer-events', 'none')
+          .style('user-select', 'none');
+      });
+    });
+
+    // Tooltip & drag
     nodeG
       .on('mouseover', function (ev: MouseEvent, d: GNode) {
-        d3.select<SVGCircleElement, GNode>(this).attr('r', 11).attr('stroke-width', 2.5);
+        d3.select(this).select('circle').attr('stroke-width', 2.5);
         tip.style.opacity = '1';
         tip.innerHTML = `
-          <div style="color:#818cf8;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px">${d.group}</div>
-          <div style="font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:2px">${d.name}</div>
-          <div style="font-size:11px">
-            <span style="color:#94a3b8">Strength: </span>
-            <span style="color:${labelColor(d.strength)};font-weight:700">
-              ${d.strength > 0 ? Math.round(d.strength) + '%' : 'No data'}
-            </span>
+          <div style="color:var(--text-muted);font-size:10px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px">${d.group}</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:2px">${d.name}</div>
+          <div style="font-size:11px;color:var(--text-secondary)">
+            Strength: <span style="color:${textFill(d.strength)};font-weight:700">${d.strength > 0 ? Math.round(d.strength) + '%' : 'No data'}</span>
           </div>
         `;
       })
       .on('mousemove', (ev: MouseEvent) => {
         tip.style.left = ev.clientX + 14 + 'px';
-        tip.style.top  = ev.clientY - 40 + 'px';
+        tip.style.top  = ev.clientY - 44 + 'px';
       })
       .on('mouseout', function () {
-        d3.select<SVGCircleElement, GNode>(this).attr('r', 8).attr('stroke-width', 1.5);
+        d3.select(this).select('circle').attr('stroke-width', 1.5);
         tip.style.opacity = '0';
       });
 
     nodeG.call(
-      d3.drag<SVGCircleElement, GNode>()
+      d3.drag<SVGGElement, GNode>()
         .on('start', (ev, d) => {
           if (!ev.active) sim.alphaTarget(0.2).restart();
-          d.fx = d.x;
-          d.fy = d.y;
+          d.fx = d.x; d.fy = d.y;
         })
-        .on('drag', (ev, d) => {
-          d.fx = ev.x;
-          d.fy = ev.y;
-        })
+        .on('drag', (ev, d) => { d.fx = ev.x; d.fy = ev.y; })
         .on('end', (ev, d) => {
           if (!ev.active) sim.alphaTarget(0);
-          d.fx = null;
-          d.fy = null;
+          d.fx = null; d.fy = null;
         })
     );
 
@@ -176,39 +213,45 @@ export default function KnowledgeGraph({ strengths }: Props) {
         .attr('x2', (d) => (d.target as GNode).x ?? 0)
         .attr('y2', (d) => (d.target as GNode).y ?? 0);
 
-      nodeG
-        .attr('cx', (d) => d.x ?? 0)
-        .attr('cy', (d) => d.y ?? 0);
+      nodeG.attr('transform', (d) => `translate(${d.x ?? 0},${d.y ?? 0})`);
     });
 
     return () => { sim.stop(); };
   }, [nodes, links]);
 
   return (
-    <div className="relative w-full">
-      <div className="flex items-center gap-5 mb-3 text-xs font-mono text-slate-500 flex-wrap">
-        <span>Strength:</span>
+    <div style={{ position: 'relative', width: '100%' }}>
+      <svg
+        ref={svgRef}
+        style={{
+          width: '100%', height: 560,
+          borderRadius: 10,
+          border: '1px solid var(--border)',
+          background: 'var(--bg-card)',
+          display: 'block',
+        }}
+      />
+
+      {/* Legend */}
+      <div style={{
+        position: 'absolute', bottom: 16, right: 16,
+        display: 'flex', alignItems: 'center', gap: 16,
+        fontSize: 12,
+      }}>
         {[
-          { label: 'No data', fill: '#1c1c2e', border: '#2d2d46' },
-          { label: '< 40',   fill: '#7f1d1d', border: '#991b1b' },
-          { label: '40–70',  fill: '#78350f', border: '#92400e' },
-          { label: '70–85',  fill: '#14532d', border: '#166534' },
-          { label: '85+',    fill: '#15803d', border: '#16a34a' },
-        ].map(({ label, fill, border }) => (
-          <span key={label} className="flex items-center gap-1.5">
-            <span className="inline-block w-2.5 h-2.5 rounded-full border"
-              style={{ background: fill, borderColor: border }} />
+          { label: 'Strong', fill: '#10b981', stroke: '#34d399' },
+          { label: 'Mid',    fill: '#065f46', stroke: '#10b981' },
+          { label: 'Weak',   fill: '#1c2128', stroke: '#30363d' },
+        ].map(({ label, fill, stroke }) => (
+          <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-secondary)' }}>
+            <span style={{
+              width: 12, height: 12, borderRadius: '50%', display: 'inline-block',
+              background: fill, border: `1.5px solid ${stroke}`,
+            }} />
             {label}
           </span>
         ))}
-        <span className="ml-auto text-slate-700">Drag · scroll to zoom · pan</span>
       </div>
-
-      <svg
-        ref={svgRef}
-        className="w-full rounded-lg border border-[#1a1a2a] bg-[#08080f]"
-        style={{ height: 560 }}
-      />
 
       <div ref={tooltipRef} className="graph-tooltip" style={{ opacity: 0 }} />
     </div>

@@ -1,73 +1,66 @@
 'use client';
-
 import { CONCEPT_GROUPS } from '@/lib/concepts';
 
-interface Props {
-  strengths: Record<string, number>;
-}
+interface Props { strengths: Record<string, number>; }
 
-function cellStyle(s: number | undefined): string {
-  if (s === undefined || s === 0) return 'strength-none';
-  if (s < 40) return 'strength-low';
-  if (s < 70) return 'strength-mid-low';
-  if (s < 85) return 'strength-mid';
-  return 'strength-high';
+function badgeStyle(s: number | undefined): React.CSSProperties {
+  const score = s ?? 0;
+  if (score === 0) return { background: 'var(--bg-card)', color: 'var(--text-muted)', border: '1px solid var(--border)' };
+  if (score < 25) return { background: '#0d2818', color: '#6ee7b7', border: '1px solid #065f46' };
+  if (score < 50) return { background: '#064e3b', color: '#34d399', border: '1px solid #059669' };
+  if (score < 75) return { background: '#065f46', color: '#a7f3d0', border: '1px solid #10b981' };
+  return { background: '#047857', color: '#d1fae5', border: '1px solid #34d399' };
 }
 
 export default function SkillHeatmap({ strengths }: Props) {
-  const data = strengths ?? {};
-
   return (
-    <div className="space-y-6">
+    <div>
       {/* Legend */}
-      <div className="flex items-center gap-4 text-xs font-mono text-slate-500">
-        <span>Strength:</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
+        <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>No data</span>
         {[
-          { label: 'No data', cls: 'strength-none' },
-          { label: '0–40', cls: 'strength-low' },
-          { label: '40–70', cls: 'strength-mid-low' },
-          { label: '70–85', cls: 'strength-mid' },
-          { label: '85+', cls: 'strength-high' },
-        ].map(({ label, cls }) => (
-          <span key={label} className="flex items-center gap-1.5">
-            <span className={`inline-block w-3 h-3 rounded-sm border ${cls}`} />
-            {label}
+          { label: '0–25', bg: '#0d2818', color: '#6ee7b7', border: '#065f46' },
+          { label: '25–50', bg: '#064e3b', color: '#34d399', border: '#059669' },
+          { label: '50–75', bg: '#065f46', color: '#a7f3d0', border: '#10b981' },
+          { label: '75–100', bg: '#047857', color: '#d1fae5', border: '#34d399' },
+        ].map(({ label, bg, color, border }) => (
+          <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+            <span style={{ width: 12, height: 12, borderRadius: 3, background: bg, border: `1px solid ${border}`, display: 'inline-block' }} />
+            <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
           </span>
         ))}
       </div>
 
-      {CONCEPT_GROUPS.map((group) => (
-        <div key={group.label}>
-          <p className="text-[10px] font-mono uppercase tracking-widest text-slate-600 mb-3">
-            {group.label}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {group.concepts.map((c) => {
-              const s = data[c.id];
-              return (
-                <div
-                  key={c.id}
-                  title={`${c.name}: ${s !== undefined && s > 0 ? Math.round(s) + '%' : 'no data'}`}
-                  className={`
-                    flex flex-col items-center justify-center
-                    rounded border cursor-default select-none
-                    transition-all hover:scale-105 hover:z-10
-                    ${cellStyle(s)}
-                  `}
-                  style={{ width: 88, height: 64 }}
-                >
-                  <span className="text-[10px] font-medium leading-tight px-2 text-center w-full truncate">
-                    {c.name}
-                  </span>
-                  <span className="font-mono text-sm font-semibold mt-1">
-                    {s !== undefined && s > 0 ? `${Math.round(s)}%` : '—'}
-                  </span>
-                </div>
-              );
-            })}
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 24 }}>
+        {CONCEPT_GROUPS.map((group) => (
+          <div key={group.label} style={{ marginBottom: 24 }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 12, marginBottom: 12 }}>{group.label}</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {group.concepts.map((c) => {
+                const s = strengths[c.id];
+                const score = s !== undefined && s > 0 ? Math.round(s) : 0;
+                return (
+                  <div
+                    key={c.id}
+                    title={`${c.name}: ${score > 0 ? score + '%' : 'no data'}`}
+                    style={{
+                      ...badgeStyle(s),
+                      borderRadius: 6,
+                      padding: '6px 12px',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      cursor: 'default',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {c.name}{score > 0 ? ` ${score}` : ''}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

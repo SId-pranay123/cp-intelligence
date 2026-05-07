@@ -1,5 +1,4 @@
 'use client';
-
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -24,38 +23,42 @@ export default function SyncButton() {
     }
   }
 
-  const configs = {
-    idle: {
-      label: 'Sync',
-      cls: 'border-[#2a2a3e] text-slate-300 hover:border-indigo-500 hover:text-indigo-300',
-    },
-    loading: {
-      label: 'Syncing…',
-      cls: 'border-indigo-800 text-indigo-400 cursor-not-allowed',
-    },
-    done: {
-      label: `↑ ${synced?.toLocaleString()} synced`,
-      cls: 'border-emerald-800 text-emerald-400',
-    },
-    error: {
-      label: 'Sync failed',
-      cls: 'border-red-900 text-red-400',
-    },
+  const label = {
+    idle: 'Sync CF',
+    loading: 'Syncing…',
+    done: `↑ ${synced?.toLocaleString()} synced`,
+    error: 'Sync failed',
   }[state];
+
+  const borderColor = state === 'error' ? 'var(--danger)' : 'var(--accent)';
+  const textColor = state === 'error' ? 'var(--danger)' : 'var(--accent)';
 
   return (
     <button
       disabled={state === 'loading'}
       onClick={handleSync}
-      className={`
-        flex items-center gap-2 px-3 py-1.5 rounded border text-xs font-mono
-        transition-all duration-200 ${configs.cls}
-      `}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 6,
+        padding: '6px 14px', borderRadius: 20,
+        border: `1px solid ${borderColor}`,
+        background: 'transparent',
+        color: textColor,
+        fontSize: 13, fontWeight: 500,
+        cursor: state === 'loading' ? 'not-allowed' : 'pointer',
+        opacity: state === 'loading' ? 0.7 : 1,
+        transition: 'all 0.2s',
+      }}
     >
-      {state === 'loading' && (
-        <span className="w-3 h-3 border border-indigo-400 border-t-transparent rounded-full animate-spin" />
+      {state === 'loading' ? (
+        <span style={{
+          width: 12, height: 12, border: '2px solid var(--accent)',
+          borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block',
+          animation: 'spin 0.8s linear infinite',
+        }} />
+      ) : (
+        <span>↻</span>
       )}
-      {configs.label}
+      {label}
     </button>
   );
 }

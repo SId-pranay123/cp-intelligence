@@ -7,6 +7,7 @@ import { CodeforcesModule } from './codeforces/codeforces.module';
 import { ProcessorModule } from './processor/processor.module';
 import { RecommendationsModule } from './recommendations/recommendations.module';
 import { RedisModule } from './redis/redis.module';
+import { TargetsModule } from './targets/targets.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { RedisModule } from './redis/redis.module';
     CodeforcesModule,
     ProcessorModule,
     RecommendationsModule,
+    TargetsModule,
   ],
 })
 export class AppModule {}

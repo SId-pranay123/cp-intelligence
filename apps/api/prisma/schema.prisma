@@ -22,6 +22,7 @@ model User {
 
   submissions        CodeforcesSubmission[]
   problemActivities  UserProblemActivity[]
+  companyTargets     UserCompanyTarget[]
 
   @@map("users")
 }
@@ -64,6 +65,19 @@ model UserProblemActivity {
   @@unique([userId, problemId])
   @@index([userId])
   @@map("user_problem_activity")
+}
+
+model UserCompanyTarget {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  companyName String   @map("company_name")
+  tags        String[]
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_company_targets")
 }
 
 model Problem {
