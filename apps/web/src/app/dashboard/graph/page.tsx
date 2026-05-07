@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { apiFetch } from '@/lib/api';
-import StatCards from '@/components/stat-cards';
+import KnowledgeGraph from '@/components/knowledge-graph';
 
 interface RawSkillProfile {
   concepts?: Array<{ concept_id: string; strength: number }>;
@@ -17,17 +17,17 @@ async function getStrengths(token: string): Promise<Record<string, number>> {
   }
 }
 
-export default async function OverviewPage() {
+export default async function GraphPage() {
   const token = cookies().get('cp_token')!.value;
   const strengths = await getStrengths(token);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
-        <h2 className="text-base font-semibold text-slate-100 mb-1">Overview</h2>
-        <p className="text-xs font-mono text-slate-600">Your skill snapshot across 71 concepts</p>
+        <h2 className="text-base font-semibold text-slate-100 mb-1">Knowledge Graph</h2>
+        <p className="text-xs font-mono text-slate-600">71 concepts · dependency edges · node color = skill strength</p>
       </div>
-      <StatCards strengths={strengths} />
+      <KnowledgeGraph strengths={strengths} />
     </div>
   );
 }

@@ -1,44 +1,64 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import ThemeToggle from './theme-toggle';
 
 const sections = [
-  { id: 'stats', label: 'Overview', icon: IconOverview },
-  { id: 'graph', label: 'Knowledge Graph', icon: IconGraph },
-  { id: 'heatmap', label: 'Skill Heatmap', icon: IconHeatmap },
-  { id: 'problems', label: "Today's Problems", icon: IconProblems },
+  { href: '/dashboard',          label: 'Overview',         icon: IconOverview,  exact: true },
+  { href: '/dashboard/graph',    label: 'Knowledge Graph',  icon: IconGraph,     exact: false },
+  { href: '/dashboard/heatmap',  label: 'Skill Heatmap',    icon: IconHeatmap,   exact: false },
+  { href: '/dashboard/problems', label: "Today's Problems", icon: IconProblems,  exact: false },
 ];
 
 export default function Sidebar({ handle }: { handle?: string }) {
-  function scrollTo(id: string) {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
+  const pathname = usePathname();
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-52 flex flex-col border-r border-[#1a1a2a] bg-[#0d0d15] z-30">
       {/* Wordmark */}
       <div className="px-5 pt-6 pb-5 border-b border-[#1a1a2a]">
-        <p className="text-[10px] font-mono tracking-widest text-indigo-400 uppercase mb-1">CP</p>
+        <p className="text-[10px] font-mono tracking-widest text-indigo-400 uppercase">CP</p>
         <h1 className="text-sm font-semibold text-slate-100 leading-tight">Intelligence</h1>
-        {handle && (
-          <p className="text-[11px] text-slate-500 mt-1 font-mono truncate">{handle}</p>
+        {handle ? (
+          <a
+            href={`https://codeforces.com/profile/${handle}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 mt-2 group"
+          >
+            <span className="text-[9px] font-mono font-semibold text-indigo-500 uppercase tracking-widest">CF</span>
+            <span className="text-[11px] font-mono text-slate-400 group-hover:text-slate-200 transition-colors truncate max-w-[120px]">
+              {handle}
+            </span>
+          </a>
+        ) : (
+          <p className="text-[11px] font-mono text-slate-600 mt-2">No handle set</p>
         )}
       </div>
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {sections.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            onClick={() => scrollTo(id)}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded text-sm text-slate-400 hover:text-slate-100 hover:bg-[#111119] transition-colors text-left group"
-          >
-            <span className="text-slate-600 group-hover:text-indigo-400 transition-colors">
-              <Icon />
-            </span>
-            {label}
-          </button>
-        ))}
+        {sections.map(({ href, label, icon: Icon, exact }) => {
+          const active = exact ? pathname === href : pathname.startsWith(href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={`
+                w-full flex items-center gap-3 px-3 py-2 rounded text-sm transition-colors text-left
+                ${active
+                  ? 'bg-indigo-500/10 text-slate-100 border border-indigo-500/20'
+                  : 'text-slate-400 hover:text-slate-100 hover:bg-[#111119] border border-transparent'}
+              `}
+            >
+              <span className={`transition-colors ${active ? 'text-indigo-400' : 'text-slate-600 group-hover:text-indigo-400'}`}>
+                <Icon />
+              </span>
+              {label}
+            </Link>
+          );
+        })}
       </nav>
 
       {/* Bottom */}
@@ -53,16 +73,10 @@ export default function Sidebar({ handle }: { handle?: string }) {
           </svg>
           Setup / Sync CF
         </Link>
-        {handle && (
-          <a
-            href={`https://codeforces.com/profile/${handle}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block text-[11px] text-slate-500 hover:text-indigo-400 transition-colors font-mono px-3"
-          >
-            cf/{handle} ↗
-          </a>
-        )}
+        <div className="flex items-center justify-between px-1">
+          <span className="text-[10px] font-mono text-slate-600 uppercase tracking-wider">Theme</span>
+          <ThemeToggle />
+        </div>
       </div>
     </aside>
   );

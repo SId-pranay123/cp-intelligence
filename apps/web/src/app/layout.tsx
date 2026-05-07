@@ -22,7 +22,19 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
-      <body className="min-h-screen bg-base text-slate-200 antialiased font-sans">
+      <head>
+        {/* Apply saved theme before first paint to avoid flash */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function(){
+            var t = localStorage.getItem('theme') || 'dark';
+            var v = t === 'system'
+              ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+              : t;
+            document.documentElement.setAttribute('data-theme', v);
+          })();
+        `}} />
+      </head>
+      <body className="min-h-screen antialiased font-sans" style={{ background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
         {children}
       </body>
     </html>
